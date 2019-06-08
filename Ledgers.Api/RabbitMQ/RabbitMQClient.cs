@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Ledgers.Api.Models;
 using RabbitMQ.Client;
@@ -37,8 +38,25 @@ namespace Ledgers.Api.RabbitMQ
 
         public string PostTransaction(SourceTransaction sourceTransaction)
         {
+            var correlationId = Guid.NewGuid().ToString();
+            var props = _model.CreateBasicProperties();
 
-            return string.Empty;
+            props.ReplyTo = _replyQueueName;
+            props.CorrelationId = correlationId;
+
+            //_model.BasicPublish("", "rpc_queue", props, sourceTransaction.Serialize());
+
+            while (true)
+            {
+                var message = _consumer.Queue.Dequeue();
+
+                if (message.BasicProperties.CorrelationId != correlationId)
+                    continue;
+
+                var authCode = Encoding.UTF8.GetString(message.Body);
+
+                return authCode;
+            }
 
         }
 
